@@ -1,25 +1,45 @@
 const express = require('express')
-const { AppError } = require('./middlewares/ErrorHandler')
+const pino = require('pino')
+const pinoHttp = require('pino-http')
+const { AppError, errorHandler } = require('./middlewares/ErrorHandler')
+const connectDB = require('./config/db')
+const logger = require('./utils/logger')
 require('dotenv').config()
 const port = process.env.PORT || 3000
 
+// config
 const app = express()
-
-const logger = pino({
-    level: process.env.LOG_LEVEL || 'info', // Set log level
-    transport: process.env.NODE_ENV !== 'production' ? {
-        target: 'pino-pretty',
-        options: { colorize: true }
-    } : undefined
-});
+connectDB()
 app.use(pinoHttp({ logger }));
 
+// cors
+const cors = require('cors')
+app.use(cors())
+// body parser
+app.use(express.json())
+app.use(express.urlencoded({ extended: true }))
 
-app.all('*', (req, res, next) => {
-    next(new AppError(`Can't find ${req.originalUrl}`, 404));
-});
-app.get('/health', (req, res) => {
+
+// routes
+const userRoutes = require('./routes/userRoutes')
+const productRoutes = require('./routes/productRoutes')
+const invoiceRoutes = require('./routes/invoiceRoutes')
+const customerRoutes = require('./routes/customerRoutes')
+
+app.use('/api/users', userRoutes)
+app.use('/api/products', productRoutes)
+app.use('/api/invoices', invoiceRoutes)
+app.use('/api/customers', customerRoutes)
+
+
+
+
+
+app.get('/health', (_req, res) => {
     res.status(200).json({ status: 'OK' });
 });
-app.use(AppError)
-app.listen(port, () => console.log(`Example app listening on port ${port}!`))
+app.all('*', (req, _res, next) => {
+    next(new AppError(`Can't find ${req.originalUrl}`, 404));
+});
+app.use(errorHandler);
+app.listen(port, () => logger.info(`Server running on port ${port}`));
