@@ -1,6 +1,6 @@
 const { z, ZodError } = require('zod');
 const User = require('../models/user');
-const { AppError } = require('../utils/errorHandler');
+const { AppError } = require('../middlewares/ErrorHandler');
 
 // Zod validation schemas
 const registerSchema = z.object({

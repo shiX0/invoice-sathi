@@ -1,5 +1,5 @@
 const Product = require('../models/product');
-const { AppError } = require('../utils/errorHandler');
+const { AppError } = require('../middlewares/ErrorHandler');
 const { z } = require('zod');
 
 // Validation schemas

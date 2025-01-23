@@ -1,6 +1,6 @@
 const { z } = require('zod');
-const Product = require('../models/productModel');
-const { AppError } = require('../utils/errorHandler'); // Make sure to import AppError
+const Product = require('../models/product');
+const { AppError } = require('../middlewares/ErrorHandler');
 
 const invoiceSchema = z.object({
     customer: z.string().min(1, "Customer ID is required"),
