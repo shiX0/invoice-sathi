@@ -5,6 +5,7 @@ const router = express.Router();
 const {
     register,
     login,
+    logout,
     getProfile,
     updateProfile,
     deleteUser
@@ -13,6 +14,7 @@ const {
 // Public routes
 router.post('/register', register);
 router.post('/login', login);
+router.post('/logout', logout);
 
 router.use(protect);
 router.get('/profile', getProfile);

@@ -15,6 +15,19 @@ const loginSchema = z.object({
     password: z.string(),
 });
 
+const updateSchema = z.object({
+    firstName: z.string().min(1).optional(),
+    lastName: z.string().min(1).optional(),
+    businessInfo: z.object({
+        name: z.string().min(1).optional(),
+        address: z.string().optional(),
+        city: z.string().optional(),
+        country: z.string().optional(),
+        email: z.string().email().optional(),
+        phone: z.string().optional(),
+    }).optional(),
+});
+
 exports.register = async (req, res, next) => {
     try {
         const validated = registerSchema.parse(req.body);
@@ -53,24 +66,34 @@ exports.register = async (req, res, next) => {
 exports.login = async (req, res, next) => {
     try {
         const validated = loginSchema.parse(req.body);
-        const user = await User.findOne({ email: validated.email }).select('+password');
+        const user = await User.findOne({ email: validated.email.toLowerCase() }).select('+password');
 
         if (!user || !(await user.matchPassword(validated.password))) {
-            return next(new AppError('Invalid credentials', 401));
+            return next(new AppError('Invalid email or password', 401));
         }
 
         const token = user.getSignedJwtToken();
 
-        // send token in cookie
+        // Cookie options
         const cookieOptions = {
-            expires: new Date(Date.now() + process.env.JWT_COOKIE_EXPIRE * 24 * 60 * 60 * 1000),
+            expires: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict'  // Protect against CSRF Attacks
         };
-        // send token in cookie
+
+        // Clear any existing cookies
+        res.clearCookie('jwt');
+
+        // Set new token cookie
         res.cookie('jwt', token, cookieOptions);
+
+        // Remove password from output
+        user.password = undefined;
+
         res.status(200).json({
             status: 'success',
+
             data: {
                 user: {
                     _id: user._id,
@@ -104,20 +127,17 @@ exports.getProfile = async (req, res, next) => {
 
 exports.updateProfile = async (req, res, next) => {
     try {
-        // Validate update data
-        const updateSchema = z.object({
-            firstName: z.string().min(1).optional(),
-            lastName: z.string().min(1).optional(),
-        });
-
         const validated = updateSchema.parse(req.body);
 
         // Update user
         const updatedUser = await User.findByIdAndUpdate(
             req.user.id,
-            validated,
+            { $set: validated },
             { new: true, runValidators: true }
         );
+
+        // Remove password from response
+        updatedUser.password = undefined;
 
         res.status(200).json({
             status: 'success',
@@ -139,6 +159,24 @@ exports.deleteUser = async (req, res, next) => {
         res.status(204).json({
             status: 'success',
             data: null
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.logout = async (req, res, next) => {
+    try {
+        // Clear the JWT cookie
+        res.clearCookie('jwt', {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict'
+        });
+
+        res.status(200).json({
+            status: 'success',
+            message: 'Logged out successfully'
         });
     } catch (error) {
         next(error);

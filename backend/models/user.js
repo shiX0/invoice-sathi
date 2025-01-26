@@ -41,6 +41,32 @@ const userSchema = new mongoose.Schema({
     isActive: {
         type: Boolean,
         default: true
+    },
+    businessInfo: {
+        name: {
+            type: String,
+            default: 'Invoice System'
+        },
+        address: {
+            type: String,
+            default: '123 Business Street'
+        },
+        city: {
+            type: String,
+            default: 'Kathmandu'
+        },
+        country: {
+            type: String,
+            default: 'Nepal'
+        },
+        email: {
+            type: String,
+            default: 'info@invoicesystem.com'
+        },
+        phone: {
+            type: String,
+            default: '+977 987654321'
+        }
     }
 }, {
     timestamps: true
@@ -57,7 +83,7 @@ userSchema.pre('save', async function (next) {
 
 userSchema.methods.getSignedJwtToken = function () {
     return jwt.sign({ id: this._id }, process.env.JWT_SECRET, {
-        expiresIn: process.env.JWT_EXPIRE
+        expiresIn: process.env.JWT_EXPIRE || '30d'
     });
 };
 
