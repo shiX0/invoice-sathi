@@ -5,10 +5,10 @@ const { z } = require('zod');
 // Validation schemas
 const productSchema = z.object({
     name: z.string().min(2).max(100),
-    description: z.string().min(10),
+    description: z.string(),
     price: z.number().positive(),
     quantity: z.number().int().min(0),
-    category: z.string().min(2),
+    category: z.enum(['Electronics', 'Clothing', 'Books', 'Home & Garden', 'Sports', 'Toys', 'Food', 'Other']),
     imageUrl: z.string().url().optional()
 });
 
@@ -16,7 +16,7 @@ const productSchema = z.object({
 exports.createProduct = async (req, res, next) => {
     try {
         const validatedData = productSchema.parse(req.body);
-        const product = await Product.create(validatedData);
+        const product = await Product.create({ ...validatedData, user: req.user._id });
         res.status(201).json({
             status: 'success',
             data: product
@@ -36,14 +36,14 @@ exports.getAllProducts = async (req, res, next) => {
         const limit = parseInt(req.query.limit) || 10;
         const skip = (page - 1) * limit;
 
-        const query = Product.find()
+        const query = Product.find({ user: req.user._id })
             .skip(skip)
             .limit(limit)
             .sort('-createdAt');
 
         const [products, total] = await Promise.all([
             query.exec(),
-            Product.countDocuments()
+            Product.countDocuments({ user: req.user._id })
         ]);
 
         res.status(200).json({

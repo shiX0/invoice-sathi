@@ -21,10 +21,16 @@ const productSchema = new mongoose.Schema({
     },
     category: {
         type: String,
+        enum: ['Electronics', 'Clothing', 'Books', 'Home & Garden', 'Sports', 'Toys', 'Food', 'Other'],
         required: true
     },
     imageUrl: {
         type: String
+    },
+    user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
     }
 }, {
     timestamps: true
