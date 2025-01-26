@@ -1,5 +1,6 @@
 const { z } = require('zod');
 const Customer = require('../models/customer');
+
 const { AppError } = require('../middlewares/ErrorHandler');
 
 // Zod validation schema remains the same
@@ -14,9 +15,20 @@ const customerSchema = z.object({
 exports.createCustomer = async (req, res, next) => {
     try {
         const validatedData = customerSchema.parse(req.body);
+
+        // Check if customer with same email already exists
+        const existingCustomer = await Customer.findOne({
+            email: validatedData.email,
+            user: req.user._id
+        });
+
+        if (existingCustomer) {
+            return next(new AppError('Customer with this email already exists', 400));
+        }
+
         const customer = new Customer({
             ...validatedData,
-            userId: req.user._id
+            user: req.user._id
         });
         await customer.save();
         res.status(201).json(customer);
@@ -24,14 +36,20 @@ exports.createCustomer = async (req, res, next) => {
         if (error instanceof z.ZodError) {
             return next(new AppError(error.errors[0].message, 400));
         }
-        next(new AppError('Error creating customer', 500));
+        // Handle MongoDB specific errors
+        if (error.code === 11000) {
+            return next(new AppError('Duplicate key error - this customer already exists', 400));
+        }
+        // Log the actual error for debugging
+        console.error('Customer creation error:', error);
+        next(new AppError(error.message || 'Error creating customer', 500));
     }
 };
 
 // Get all customers for a user
 exports.getCustomers = async (req, res, next) => {
     try {
-        const customers = await Customer.find({ userId: req.user._id });
+        const customers = await Customer.find({ user: req.user._id });
         res.json(customers);
     } catch (error) {
         next(new AppError('Error fetching customers', 500));
@@ -43,7 +61,7 @@ exports.getCustomer = async (req, res, next) => {
     try {
         const customer = await Customer.findOne({
             _id: req.params.id,
-            userId: req.user._id
+            user: req.user._id
         });
         if (!customer) {
             return next(new AppError('Customer not found', 404));
@@ -59,7 +77,7 @@ exports.updateCustomer = async (req, res, next) => {
     try {
         const validatedData = customerSchema.parse(req.body);
         const customer = await Customer.findOneAndUpdate(
-            { _id: req.params.id, userId: req.user._id },
+            { _id: req.params.id, user: req.user._id },
             validatedData,
             { new: true }
         );
@@ -80,7 +98,7 @@ exports.deleteCustomer = async (req, res, next) => {
     try {
         const customer = await Customer.findOneAndDelete({
             _id: req.params.id,
-            userId: req.user._id
+            user: req.user._id
         });
         if (!customer) {
             return next(new AppError('Customer not found', 404));
