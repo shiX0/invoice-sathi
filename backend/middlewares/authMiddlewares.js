@@ -6,18 +6,35 @@ const protect = async (req, res, next) => {
         const token = req.cookies.jwt;
 
         if (!token) {
-            return res.status(401).json({ message: 'Not authorized, no token' });
+            res.status(401);
+            throw new Error('Not authorized, no token');
         }
+
+        // Verify token
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const user = await User.findById(decoded.userId).select('-password');
+        console.log("decoded", decoded);
+        // Get user from database
+        const user = await User.findById(decoded.id).select('-password');
+
         if (!user) {
-            return res.status(401).json({ message: 'User not found' });
+            res.status(401);
+            throw new Error('User not found');
         }
+        if (decoded.exp && decoded.exp < Date.now() / 1000) {
+            res.status(401);
+            throw new Error('Token has expired');
+        }
+
         req.user = user;
         next();
 
     } catch (error) {
-        return res.status(401).json({ message: 'Not authorized, token failed' });
+
+        if (error.name === 'JsonWebTokenError') {
+            res.status(401).json({ message: 'Invalid token' });
+        } else {
+            res.status(401).json({ message: error.message || 'Not authorized' });
+        }
     }
 };
 const isAdmin = (req, res, next) => {
