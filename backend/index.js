@@ -11,6 +11,7 @@ const logger = require('./utils/logger');
 const cookieParser = require('cookie-parser');
 const loggerMiddleware = require('./middlewares/loggerMiddleware');
 const { globalLimiter, authLimiter, apiLimiter } = require('./middlewares/rateLimiter');
+const path = require('path');
 require('dotenv').config();
 const port = process.env.PORT || 3000;
 
@@ -80,6 +81,9 @@ app.use('/api/invoices', invoiceRoutes)
 app.use('/api/customers', customerRoutes)
 app.use('/api/logs', logRoutes)
 
+// Serve static files from the uploads directory
+app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
+
 app.get('/health', (_req, res) => {
     res.status(200).json({ status: 'OK' });
 });
@@ -88,3 +92,20 @@ app.all('*', (req, _res, next) => {
 });
 app.use(errorHandler);
 app.listen(port, () => logger.info(`Server running on port ${port}`));
+
+// graceful shutdown
+process.on('SIGTERM', () => {
+    logger.info('SIGTERM signal received. Shutting down gracefully...');
+    server.close(() => {
+        logger.info('HTTP server closed.');
+    });
+});
+
+process.on('SIGINT', () => {
+    logger.info('SIGINT signal received. Shutting down...');
+    server.close(() => {
+        logger.info('HTTP server closed.');
+    });
+});
+
+
