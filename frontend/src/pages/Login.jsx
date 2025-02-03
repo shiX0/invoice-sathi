@@ -25,8 +25,18 @@ function Login() {
       }
     },
     onError: (error) => {
-      // Handle rate limit errors specifically
-      if (error.response?.status === 429) {
+      if (error.response?.status === 403) {
+        const message =
+          error.response?.data?.message ||
+          "Your password has expired. Please reset your password.";
+        setError(message);
+        toast.error(message, {
+          duration: 5000,
+          icon: "🔒",
+        });
+        // Redirect to password reset page
+        navigate("/reset-password");
+      } else if (error.response?.status === 429) {
         const message =
           error.response?.data?.message ||
           "Too many login attempts. Please try again later.";
@@ -63,7 +73,7 @@ function Login() {
   const handleSubmit = (e) => {
     e.preventDefault();
     setError("");
-    setLoginSuccess(false); // Reset login success state
+    setLoginSuccess(false);
 
     const loginData = {
       email: formData.email,

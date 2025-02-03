@@ -1,9 +1,10 @@
+/* eslint-disable react/prop-types */
 import { useQuery } from "@tanstack/react-query";
 import { Navigate } from "react-router-dom";
 import api from "../services/api";
 
 const ProtectedRoute = ({ children }) => {
-  const { data, isLoading, isError } = useQuery({
+  const { isLoading, isError } = useQuery({
     queryKey: ["auth"],
     queryFn: async () => {
       const response = await api.get("/users/profile");

@@ -87,7 +87,8 @@ export const authAPI = {
             localStorage.removeItem('user');
             localStorage.removeItem('token');
         }
-    }
+    },
+    resetPassword: (data) => api.post('/users/reset-password', data),
 };
 
 // Keep other API methods for use with React Query

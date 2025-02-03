@@ -79,19 +79,11 @@ function Products() {
   const handleSubmit = (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
-    const data = {
-      name: formData.get("name"),
-      description: formData.get("description"),
-      price: parseFloat(formData.get("price")),
-      quantity: parseInt(formData.get("quantity")),
-      category: formData.get("category"),
-      imageUrl: formData.get("imageUrl") || undefined,
-    };
 
     if (editingProduct) {
-      handleUpdate(editingProduct._id, data);
+      handleUpdate(editingProduct._id, formData);
     } else {
-      handleCreate(data);
+      handleCreate(formData);
     }
   };
 
@@ -209,7 +201,11 @@ function Products() {
         }}
         title={editingProduct ? "Edit Product" : "Add Product"}
       >
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-6"
+          encType="multipart/form-data"
+        >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <label className="block text-sm font-semibold text-gray-700">
@@ -295,14 +291,13 @@ function Products() {
 
           <div className="space-y-2">
             <label className="block text-sm font-semibold text-gray-700">
-              Image URL
+              Image
             </label>
             <input
-              type="url"
-              name="imageUrl"
-              defaultValue={editingProduct?.imageUrl}
+              type="file"
+              name="productImage"
+              accept="image/*"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-              placeholder="https://example.com/image.jpg"
             />
           </div>
 

@@ -17,6 +17,7 @@ import CreateInvoice from "./pages/CreateInvoice";
 import EditInvoice from "./pages/EditInvoice";
 import PropTypes from "prop-types";
 import AdminDashboard from "./pages/AdminDashboard";
+import ResetPassword from "./pages/ResetPassword";
 
 const queryClient = new QueryClient();
 
@@ -34,7 +35,6 @@ function DashboardLayout({ children }) {
   );
 }
 
-// Add prop types for DashboardLayout
 DashboardLayout.propTypes = {
   children: PropTypes.node.isRequired,
 };
@@ -160,6 +160,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route path="/reset-password" element={<ResetPassword />} />
         </Routes>
       </Router>
     </QueryClientProvider>
