@@ -1,7 +1,5 @@
 const express = require('express');
-const { protect, isAdmin } = require('../middlewares/authMiddlewares');
-
-const router = express.Router();
+const { protect } = require('../middlewares/authMiddlewares');
 const {
     createProduct,
     getAllProducts,
@@ -10,6 +8,8 @@ const {
     deleteProduct,
     searchProducts
 } = require('../controllers/productController');
+
+const router = express.Router();
 
 // All routes protected
 router.use(protect);
