@@ -7,7 +7,14 @@ const registerSchema = z.object({
     firstName: z.string().min(1),
     lastName: z.string().min(1),
     email: z.string().email(),
-    password: z.string().min(8),
+    password: z.string().min(8).refine((password) => {
+        // Check if password contains at least one number and one special character
+        const hasNumber = /\d/.test(password);
+        const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+        return hasNumber && hasSpecialChar;
+    }, {
+        message: "Password must contain at least one number and one special character"
+    }),
 });
 
 const loginSchema = z.object({
@@ -26,6 +33,7 @@ const updateSchema = z.object({
         email: z.string().email().optional(),
         phone: z.string().optional(),
     }).optional(),
+    password: z.string().optional(),
 });
 
 exports.register = async (req, res, next) => {
@@ -68,9 +76,36 @@ exports.login = async (req, res, next) => {
         const validated = loginSchema.parse(req.body);
         const user = await User.findOne({ email: validated.email.toLowerCase() }).select('+password');
 
-        if (!user || !(await user.matchPassword(validated.password))) {
+        if (!user) {
             return next(new AppError('Invalid email or password', 401));
         }
+
+        // Check if account is locked
+        if (user.lockUntil && user.lockUntil > Date.now()) {
+            return next(new AppError('Account is locked. Please try again later.', 403));
+        }
+
+        const isMatch = await user.matchPassword(validated.password);
+
+        if (!isMatch) {
+            user.failedLoginAttempts += 1;
+            if (user.failedLoginAttempts >= 5) {
+                user.lockUntil = Date.now() + 30 * 60 * 1000; // Lock account for 30 minutes
+            }
+            await user.save();
+            return next(new AppError('Invalid email or password', 401));
+        }
+
+        // Check if password change is required
+        const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+        if (user.lastPasswordChange < ninetyDaysAgo) {
+            return next(new AppError('Password expired. Please change your password.', 403));
+        }
+
+        // Reset failed login attempts on successful login
+        user.failedLoginAttempts = 0;
+        user.lockUntil = undefined;
+        await user.save();
 
         const token = user.getSignedJwtToken();
 
@@ -93,7 +128,6 @@ exports.login = async (req, res, next) => {
 
         res.status(200).json({
             status: 'success',
-
             data: {
                 user: {
                     _id: user._id,
@@ -128,6 +162,15 @@ exports.getProfile = async (req, res, next) => {
 exports.updateProfile = async (req, res, next) => {
     try {
         const validated = updateSchema.parse(req.body);
+
+        // Check if the new password is unique
+        if (validated.password) {
+            const user = await User.findById(req.user.id).select('+passwordHistory');
+            const isUnique = await user.isPasswordUnique(validated.password);
+            if (!isUnique) {
+                return next(new AppError('New password must be different from the last three passwords', 400));
+            }
+        }
 
         // Update user
         const updatedUser = await User.findByIdAndUpdate(

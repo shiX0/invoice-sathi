@@ -1,6 +1,7 @@
 const Product = require('../models/product');
 const { AppError } = require('../middlewares/ErrorHandler');
 const { z } = require('zod');
+const upload = require('../utils/multer'); // Import multer setup
 
 // Validation schemas
 const productSchema = z.object({
@@ -13,21 +14,33 @@ const productSchema = z.object({
 });
 
 // Create Product
-exports.createProduct = async (req, res, next) => {
-    try {
-        const validatedData = productSchema.parse(req.body);
-        const product = await Product.create({ ...validatedData, user: req.user._id });
-        res.status(201).json({
-            status: 'success',
-            data: product
-        });
-    } catch (error) {
-        if (error instanceof z.ZodError) {
-            return next(new AppError(error.errors[0].message, 400));
+exports.createProduct = [
+    upload.single('productImage'), // Use multer to handle file upload
+    async (req, res, next) => {
+        try {
+            const data = {
+                ...req.body,
+                price: parseFloat(req.body.price),
+                quantity: parseInt(req.body.quantity, 10)
+            };
+
+            const validatedData = productSchema.parse(data);
+            if (req.file) {
+                validatedData.imageUrl = `/uploads/${req.file.filename}`;
+            }
+            const product = await Product.create({ ...validatedData, user: req.user._id });
+            res.status(201).json({
+                status: 'success',
+                data: product
+            });
+        } catch (error) {
+            if (error instanceof z.ZodError) {
+                return next(new AppError(error.errors[0].message, 400));
+            }
+            next(error);
         }
-        next(error);
     }
-};
+];
 
 // Get All Products with Pagination
 exports.getAllProducts = async (req, res, next) => {
@@ -76,28 +89,34 @@ exports.getProduct = async (req, res, next) => {
 };
 
 // Update Product
-exports.updateProduct = async (req, res, next) => {
-    try {
-        const validatedData = productSchema.partial().parse(req.body);
-        const product = await Product.findByIdAndUpdate(
-            req.params.id,
-            validatedData,
-            { new: true, runValidators: true }
-        );
-        if (!product) {
-            return next(new AppError('Product not found', 404));
+exports.updateProduct = [
+    upload.single('productImage'), // Use multer to handle file upload
+    async (req, res, next) => {
+        try {
+            const validatedData = productSchema.partial().parse(req.body);
+            if (req.file) {
+                validatedData.imageUrl = `/uploads/${req.file.filename}`;
+            }
+            const product = await Product.findByIdAndUpdate(
+                req.params.id,
+                validatedData,
+                { new: true, runValidators: true }
+            );
+            if (!product) {
+                return next(new AppError('Product not found', 404));
+            }
+            res.status(200).json({
+                status: 'success',
+                data: product
+            });
+        } catch (error) {
+            if (error instanceof z.ZodError) {
+                return next(new AppError(error.errors[0].message, 400));
+            }
+            next(error);
         }
-        res.status(200).json({
-            status: 'success',
-            data: product
-        });
-    } catch (error) {
-        if (error instanceof z.ZodError) {
-            return next(new AppError(error.errors[0].message, 400));
-        }
-        next(error);
     }
-};
+];
 
 // Delete Product
 exports.deleteProduct = async (req, res, next) => {
@@ -106,6 +125,12 @@ exports.deleteProduct = async (req, res, next) => {
         if (!product) {
             return next(new AppError('Product not found', 404));
         }
+
+        // Delete the image file if it exists
+        if (product.imageUrl) {
+            deleteFile(product.imageUrl);
+        }
+
         res.status(204).json({
             status: 'success',
             data: null
